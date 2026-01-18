@@ -1,0 +1,1257 @@
+---
+title: "PS941: Practical Report 2"
+author: "Lukasz Walasek"
+date: "03/07/2025"
+format: html
+---
+
+For your second PS941 practical report, you will need to complete two activities. These are equally weighted, and you must complete both to achieve the maximum score. Please read the following instructions carefully. Each challenge requires a written response and annotated R code (**Important: Please make sure to submit RAW R Code with your report**). You can choose one of the following formats but please remember to always include raw R code in uncompiled .Rmd or .qmd file, or plain R script.
+
+**R Markdown**: Submit a single '.Rmd' file, along with a compiled document in either a .pdf or .html format.
+
+**LaTeX**: Submit both the compiled PDF and the '.tex' source file(s). I recommend using Overleaf.
+
+**Quarto**: Submit a '.qmd' file (similar to your seminar materials) containing your responses and code snippets. You can even use the source file for these instructions as a template.
+
+**Word Document**: Submit your report as a Word document. In addition, submit a separate file containing all the raw 'R' code.
+
+*Whichever option you choose, I recommend that you compress all files into a .zip format and submit your work as one file to avoid issues with Tabula.*
+
+Please note that there is no strict word limit for this report, but you should aim for approximately 500-1000 words per challenge. The R code does not count towards this total. In other words, what matters is that your code works, not that how conciesly you can write it.
+
+```{r}
+#load libraries
+library(igraph)
+```
+
+## Challenge 1 - Network Analysis
+
+Your task is to create your own social network and then visualize and evaluate it along several metrics. To do this, you need to follow these steps:
+
+**1.** Write down a list of people you know personally, as quickly as you can, between 15 and 20 people. These represent the nodes in your network.
+
+1.  Henry
+2.  Isabel
+3.  Jophy
+4.  Jocelyn
+5.  Elspeth
+6.  Dnesh
+7.  Wallace
+8.  William
+9.  Jean
+10. CK
+11. Lucas
+12. Olive
+13. Eden
+14. Kalydia
+15. Viet
+16. Iris
+17. Varun
+
+**2.** Next, produce a weighted adjacency matrix indicating how well these people know one another (on a scale from 0 to 4) --- this is data you can input based on your personal knowledge of the people and their relationships. You can use any software you like for this, but an excel sheet is straightforward. Make sure you attach these data with your submission so that the marker can reproduce your analysis.
+
+```{r}
+#read data
+#the ratings are based on how well they think they know the other person(0 = never met, 4 = very close)
+data <- read.csv("personalnetwork.csv", header = TRUE, row.names = 1)
+
+# Convert the data frame to a matrix
+adj_matrix <- as.matrix(data)
+adj_matrix
+# Plotting
+g <- graph_from_adjacency_matrix(adj_matrix, mode = "directed", weighted = TRUE, diag = FALSE)
+plot(g, vertex.label = V(g)$name)
+
+#can visualise the edge weight(higher weight, thicker edge)
+plot(g, edge.width = E(g)$weight)
+```
+
+As we can see, Iris has never met any of the other people from the network, nor does she know any of them, so there is no edges conne![]()cting between her nodes to the others.
+
+The data is directed and weighted, which means Henry might think he knows much about Isabel(which is a 4), but Isabel might think she doesn't know much about Henry.(which is a 2)
+
+The networks was created with one of the edges varies in width based on the weights.
+
+**3.** For every possible threshold between 0 and 4, visualize the unweighted and undirected network, and so that node labels are clear and legible. You may need to try different layouts and you may need to relabel your nodes (e.g., with initials).
+
+```{r}
+#turn any NA values to 0(if there is any)
+E(g)$weight[is.na(E(g)$weight)] <- 0
+
+#Compute a fixed layout using an undirected version 
+g_full_undir <- as.undirected(g, mode = "collapse")
+E(g_full_undir)$weight <- 1  # make edges unweighted for layout purposes
+fixed_layout <- layout_with_fr(g_full_undir)
+cat("Fixed layout (first few rows):\n")
+print(head(fixed_layout))
+
+#Create new node labels as initials plus the CSV row number.
+# (For example, if "Henry" is in row 2, the label becomes "H2".)
+new_labels <- sapply(seq_along(rownames(data)), function(i) {
+  name <- rownames(data)[i]
+  # Compute initials: split the name and take the first letter of each part.
+  initials <- paste(sapply(strsplit(name, " ")[[1]], function(x) toupper(substr(x, 1, 1))), collapse = "")
+  # Append the row number 
+  paste0(initials, i + 1)
+})
+cat("New node labels (initials + row number):\n")
+new_labels
+
+#Define a function to threshold the directed + weighted graph and convert it to an undirected graph.
+threshold_and_convert <- function(graph, thresh) {
+  to_delete <- E(graph)[E(graph)$weight < thresh]
+  
+  g_thresh <- if (length(to_delete) > 0) {
+    delete_edges(graph, to_delete)
+  } else {
+    graph
+  }
+  
+  g_thresh_undir <- as.undirected(g_thresh, mode = "collapse")
+  if (length(E(g_thresh_undir)) > 0) {
+    E(g_thresh_undir)$weight <- 1  # set all surviving edges to weight 1
+  }
+  
+  return(g_thresh_undir)
+}
+
+# Loop over threshold values 0 to 4 and plot each thresholded network.
+for (th in 0:4) {
+  cat("Processing threshold:", th, "\n")
+  g_thresh <- threshold_and_convert(g, th)
+  
+  matched_labels <- new_labels[match(V(g_thresh)$name, rownames(adj_matrix))]
+  V(g_thresh)$label <- matched_labels
+  
+  plot(g_thresh,
+       layout = fixed_layout,
+       vertex.size = 25,
+       vertex.label.cex = 1.3,
+       vertex.label.dist = 0.5,
+       edge.arrow.mode = 0,   # no arrows since we display undirected networks
+       main = paste("Threshold:", th))
+  
+  Sys.sleep(3)  # Pause for 3 seconds, so all the graphs are shwosn in different windows
+}
+
+```
+
+Threshold networking filters a network's connections based on their strength, help to focus on meaningful relationships by removing weaker ties. With a low threshold(0-1), the graph shows all almost almost all the connections, apart from I17, but it contains too many noise, to overcome the issue, a high threshold strips(3-4) away the weaker links to reveal the strongest, core relationships---though this might isolate some nodes. The graph shows that when the threshold is 3 and 4, there are tow main communities/clusters on the graph. However, it might cut off weaker connections that are meaningful or significant, relationship that links between groups.
+
+Converting directed, weighted data into an undirected, unweighted network simplifies the analysis by focusing solely on the presence of a significant connection, regardless of its exact strength or direction. This transformation makes it easier to visualize the network's community structure and compare it to random models. Although converting to an undirected network removes details about who initiates the connection, but the differences in how much people know each other aren't expected to be significant.
+
+**4.** Choose what you see as the most informative unweighted network above, and produce a table of centrality measures for each of the nodes: degree, betweenness, eigenvector centrality, closeness, and clustering coefficient. Briefly explain what each of these measures tells us about your social network.
+
+```{r}
+# Convert the matrix to numeric 
+adj_matrix_numeric <- as.numeric(adj_matrix)
+
+# Create a frequency table of the values
+value_counts <- table(adj_matrix_numeric)
+#compare the numbers of 2 and 3 
+value_counts
+```
+
+I believe that using a threshold of 2 yields the most informative unweighted network. Choosing threshold 2 strikes a balance between retaining too many weak edges and filtering out too many moderate connections. Using a lower threshold (0 or 1) would retain nearly all ties, resulting in a dense network cluttered with incidental links that obscure meaningful structures. Additionally, we observe that while the network remains fully connected at threshold 1, at threshold 2 it clearly divides into two distinct groups. Conversely, using a higher threshold (3 or 4) would remove most moderate connections, leaving the network overly sparse and potentially isolating nodes(W8, O13). In short, thresholding at 2 excludes weak links while preserving moderate and strong ties, making it easier to identify core groups, bridging nodes, and central individuals in my social network.
+
+```{r}
+
+
+# Create the threshold 2 unweighted network
+g_thresh2 <- threshold_and_convert(g, 2)
+
+
+#    This ensures each vertex gets its label (e.g., "H2", "I3", etc.).
+matched_labels <- new_labels[match(V(g_thresh2)$name, rownames(adj_matrix))]
+V(g_thresh2)$label <- matched_labels
+
+#  Calculate centrality measures on the threshold 2 network.
+#    Since the network is now unweighted and undirected, use directed=FALSE.(discussed above)
+degree_centrality    <- degree(g_thresh2, mode = "all")
+betweenness_centrality <- betweenness(g_thresh2, directed = FALSE)
+eigen_centrality     <- eigen_centrality(g_thresh2)$vector
+closeness_centrality <- closeness(g_thresh2, normalized = TRUE)
+clustering_coef      <- transitivity(g_thresh2, type = "local", isolates="zero")
+
+# Create a table with the centrality measures for each node.
+centrality_table <- data.frame(
+  Node = V(g_thresh2)$label,
+  Degree = degree_centrality,
+  Betweenness = betweenness_centrality,
+  Eigenvector = eigen_centrality,
+  Closeness = closeness_centrality,
+  Clustering = clustering_coef
+)
+
+#  Print the table
+centrality_table
+
+```
+
+In the threshold-2 network, my personal network distinctly separates into two communities: one comprising my core family and my girlfriend, and the other formed by my climbing buddies, with one friend from another university (I17) remaining completely isolated. My core family members (H2, I3, J4, and J5) each have a degree of 7, meaning they have seven direct connections, which highlights their strong, active ties within the family. Their eigenvector centrality of 1.0 indicates that they are connected to other influential nodes, reinforcing their prominence. Their clustering coefficient, around 0.81, shows that most of their contacts are also connected to each other, forming a tightly knit group that facilitates efficient communication. My girlfriend, E6, has the highest degree of 9 and an exceptionally high betweenness of 21.7, demonstrating her role as a critical bridge that connects different parts of the network, even though her closeness (0.9) mainly reflects her rapid reach within her own cluster. In contrast, my climbing buddies (such as K15, L12, and V16) exhibit lower degrees (3--4) and a clustering coefficient of about 0.6667, indicating moderate internal connectivity within their smaller group. Although K15's closeness is 1.0, this reflects quick reachability within the climbing community only, as it is largely disconnected from the family group. Finally, I17's degree of 0 confirms that he is completely isolated from both communities. .
+
+**5.** Provide evidence that this network is or is not assortative by degree. Explain what your result means.
+
+```{r}
+assortativity_degree(g_thresh2)
+
+#Calculate degree for each vertex in the threshold network(how many nodes each node is connected to)
+deg <- degree(g_thresh2, mode = "all")
+
+#Create a colour palette that maps low degree to orange and high degree to blue.
+#The more nodes it is connected to, the more blue it is.
+pal <- colorRampPalette(c("orange", "blue"))
+
+# Assign colors to each node based on its degree.
+V(g_thresh2)$color <- pal(max(deg) + 1)[deg + 1]
+
+# Plot
+plot(g_thresh2, 
+     layout = fixed_layout, 
+     vertex.size = 25, 
+     vertex.label = V(g_thresh2)$name, 
+     vertex.label.cex = 1.2, 
+     main = "Threshold Network (Threshold = 2) Coloured by Degree")
+```
+
+The degree assortativity coefficient of my threshold network(2) is 0.204. This positive value indicates that, overall, people in my network tend to be connected to others who have a similar number of connections. Additionally, when I color-coded the nodes based on their degree, the network shows that high-degree nodes cluster together, and lower-degree nodes are mostly connected with other lower-degree nodes.
+
+**6.** For all the thresholds you used for keeping edges in your network, show which of these thresholds produces a network that is least like an Erdös-Renyi random graph in terms of clustering coefficient. To do this, generate 200 Erdös-Renyi random graphs of the same size and density as your network for each threshold and compare the distribution of clustering coefficients with the observed value for your social network at that threshold. You can use a one-sample t-test for each comparison. Report the analysis and visualize the winning thresholded network alongside an example ER random graph. ER random graphs are explained in detail in chapter 3 of your textbook.
+
+```{r}
+# threshold list
+thresholds <- 0:4
+er_results <- list()
+
+threshold_summary <- data.frame(
+  Threshold = integer(),
+  Observed_Clustering = numeric(),
+  ER_Mean_Clustering = numeric(),
+  P_Value = numeric()
+)
+
+#loops over each threshold from 0-4, remove weak connections and turn to undirected
+for (th in thresholds) {
+  cat("Processing threshold:", th, "\n")
+  
+  # Create the thresholded network(0-4)
+  g_thresh <- threshold_and_convert(g, th)
+  
+  # calculate global clustering coefficient
+  obs_cluster <- transitivity(g_thresh, type = "global")
+  
+  # obtain the parameters to generate the ER graphs with the same size
+  n_nodes <- vcount(g_thresh)
+  dens <- edge_density(g_thresh, loops = FALSE)
+  
+  # Generate 200 ER random graphs with the same parameters(n_nodes and dens)
+  er_clustering <- numeric(200)
+  for (i in 1:200) {
+    er <- sample_gnp(n_nodes, dens, directed = FALSE, loops = FALSE)
+    er_clustering[i] <- transitivity(er, type = "global")
+  }
+  
+  # Perform a one-sample t-test comparing the ER clustering distribution with the observed clustering
+  t_result <- t.test(er_clustering, mu = obs_cluster)
+  #A low p-value indicates that the network’s clustering is significantly different from random expectation.
+  
+  # Store the results, so can comapre at the end
+  er_results[[as.character(th)]] <- list(
+    threshold = th,
+    obs_cluster = obs_cluster,
+    er_mean = mean(er_clustering),
+    t_statistic = t_result$statistic,
+    p_value = t_result$p.value,
+    er_clustering = er_clustering,
+    g_thresh = g_thresh
+  )
+  threshold_summary <- rbind(threshold_summary, data.frame(
+    Threshold = th,
+    Observed_Clustering = obs_cluster,
+    ER_Mean_Clustering = mean(er_clustering),
+    P_Value = t_result$p.value
+  ))
+}
+
+
+# Identify the threshold that is least like an ER random graph (lowest p-value)
+pvals <- sapply(er_results, function(x) x$p_value)
+winning_threshold <- as.numeric(names(which.min(pvals)))
+winning_result <- er_results[[as.character(winning_threshold)]]
+
+cat("Winning threshold:", winning_threshold, "\n")
+cat("Observed clustering coefficient:", winning_result$obs_cluster, "\n")
+cat("Mean ER clustering coefficient:", winning_result$er_mean, "\n")
+cat("t-statistic:", winning_result$t_statistic, "\n")
+cat("p-value:", winning_result$p_value, "\n")
+
+threshold_summary
+# Visualize the winning threshold network alongside an example ER random graph.
+par(mfrow = c(1, 2))
+
+# Plot the winning threshold network using the fixed layout
+plot(winning_result$g_thresh,
+     layout = fixed_layout,
+     vertex.size = 25,
+     vertex.label.cex = 1.2,
+     main = paste("Thresholded Network\n(Threshold =", winning_threshold, ")"))
+
+# Generate one example ER graph with the same number of nodes and density
+n_nodes_win <- vcount(winning_result$g_thresh)
+dens_win <- edge_density(winning_result$g_thresh, loops = FALSE)
+er_example <- sample_gnp(n_nodes_win, dens_win, directed = FALSE, loops = FALSE)
+layout_er <- layout_with_fr(er_example)
+
+plot(er_example,
+     layout = layout_er,
+     vertex.size = 25,
+     vertex.label.cex = 1.2,
+     main = "ER Random Graph")
+
+par(mfrow = c(1, 1))
+```
+
+#### Methodology
+
+1.  First, the original social network was thresholded at values ranging from 0 to 4, removing weaker connections and converting the network into an unweighted and undirected form.
+
+2.  For each thresholded network, the global clustering coefficient was calculated to assess the tendency of nodes to form tightly interconnected groups.
+
+3.  200 Erdös-Renyi random graphs were generated for each threshold, using the same (parameter) number of nodes and density to match the corresponding thresholded network. (each thresholded network has its density and edges)
+
+4.  A one-sample t-test was then conducted to determine whether the observed clustering coefficient significantly differed from the ER-generated mean.
+
+5.  !!!a lower p-value means a greater difference between the thresholded network and a random network.
+
+#### Data Analysis
+
+The thresholded network at **threshold = 4** was identified as the most distinct from an ER random graph, as indicated by its **p-value ( *p \<* .01)**. The observed clustering coefficient (0.9130) for this network was markedly higher than the mean ER clustering coefficient (0.1125), showing a strong departure from random graph expectations.
+
+The data indicates that as the threshold increases, weaker connections are removed, leaving only the strongest links that define the core structure of the social network(groups, components communities etc). At lower thresholds (0 and 1), the observed clustering coefficient is lower (0.6804), as weaker ties increase network density but do not significantly contribute to tightly clustered subgroups. At **threshold = 2**, a marked increase in clustering is observed (0.7588), suggesting the emergence of well-defined groups. However, the greatest deviation from random graph structure occurs at threshold 4, where clustering is maximised while maintaining distinct community structures.
+
+#### Erdös-Rényi Graph Properties
+
+The Erdös-Rényi (ER) model generates graphs in which edges are placed independently and randomly with a fixed probability between each pair of nodes (Erdös & Rényi, 1959). As a result, ER graphs exhibit low clustering coefficients, as edges form without favoring triadic closure, meaning friends of friends are not necessarily connected. The data reflect this, with ER mean clustering coefficients ranging between 0.1125 and 0.3557 across thresholds, remaining consistently lower than the observed clustering in the real network.
+
+In contrast, real-world social networks tend to exhibit high levels of clustering, where nodes are embedded in tightly knit communities. The thresholded network at threshold = 4 retains these core communities, with clusters reflecting family connections, different friend and social groups. The extremely low p-value (3.93 × 10⁻¹⁸⁴) at this threshold indicates that the clustering structure is highly non-random, further supports the idea that social networks form through preferential attachment rather than random connectivity.(as computed in part 5, the assortativity coefficient is 0.204 for threshold 2, whilst ER graph tend to have assortativity close to 0)
+
+The difference in clustering coefficients between the ER model and the thresholded network highlights a fundamental distinction between random and real-world social structures. In an ER graph, connections are evenly distributed, lacking central hubs or well-defined clusters. Conversely, in the thresholded network, clustering is significantly higher, illustrating the presence of strong communities(family group and climbing groups) and interconnected relationships(strong interlink \~ high betweenness) that ER graphs fail to replicate.
+
+## Challenge 2 - Agent Based Modeling
+
+Your second task is to propose and test two extensions of Granovetter's threshold model. Your starting point is the simple implementation of the model, which is described below. In this implementation, agents are located in a square grid and each one is assigned some threshold value. On each iteration, a randomly picked agent inspects eight of its immediate neighbours to see if they are active (1) or passive (0). If the proportion of active agents is higher than the agent's threshold value, the agent becomes active too.
+
+Your task is as follows:
+
+**1.** Think about the type of social process that you would like to model with this framework. You can choose anything you like, using the model to simulate the rising number of people who choose to riot, get married, adopt some technology, or just express some attitude. While it is completely up to you what you choose, in your answer you should explain how the model captures the key dynamics of your chosen social process.
+
+#### How does Granovetter's threshold model simulalate riots or protests spread within a community?
+
+#### 1. Local Influence (Social Proximity, Relationships, and Location)
+
+**Agent Behaviour in the Model:** Each agent's decision to protest is based primarily on the behaviour of its immediate neighbours---those located directly around it in the grid---rather than agents that are farther away. If a sufficient proportion of these surrounding neighbours are active, the agent becomes active.
+
+**Real-Life Reflection:** In everyday life, people are most influenced by those physically and socially closest to them, such as family, friends, and neighbours. The immediate environment plays a crucial role in shaping decisions, while individuals who are further away have a considerably smaller impact.
+
+#### 2. Individual Thresholds and Heterogeneity (Diverse Levels of Readiness)
+
+**Agent Behaviour in the Model:** Every agent has a unique threshold representing how much local activity it needs to see before becoming active. Agents with low thresholds need very little persuasion, whereas those with high thresholds remain inactive until they observe a large number of protesting neighbours.
+
+**Real-Life Reflection:** In reality, people have varying degrees of willingness to protest. Enthusiastic activists join quickly, while others are more cautious and require a stronger local consensus or visible support before they take part.
+
+#### 3. Cascading/Dominos Effect
+
+**Agent Behaviour in the Model:** When an agent switches from inactive to active, it raises the proportion of active neighbours for surrounding agents. This can push neighbouring agents over their thresholds, creating a domino-like chain reaction of activations.
+
+**Real-Life Reflection:** In a real protest, a few early adopters can galvanise wider participation. Their visible involvement encourages those on the fence to join, further increasing momentum and triggering more people to follow suit in a reinforcing cycle.
+
+#### 
+
+4.  Social Clusters
+
+**Agent Behaviour in the Model:** Protest behaviour spreads most rapidly within tightly knit clusters of agents. Once one member of a cluster becomes active, neighbouring agents in that cluster are more likely to be influenced and also become active.
+
+**Real-Life Reflection:** People form close-knit groups based on shared backgrounds or geographical proximity. Protests can quickly escalate within such groups, yet remain contained in other areas if those clusters lack early adopters or strong local influencers.
+
+#### 
+
+5.  Information Barriers (Echo Chamber Effect)
+
+**Agent Behaviour in the Model:** Agents with high thresholds or strong resistance can block the spread of activity by preventing the local proportion of active neighbours from ever reaching the tipping point needed to convert them or surrounding agents. (In this case, number of agents stopped at around 115-125 even when there are 1024 agents in the grid. )
+
+**Real-Life Reflection:** In real communities, influential individuals who are firmly opposed to protesting can dampen enthusiasm in their immediate networks. Their resistance creates an echo chamber, limiting exposure to pro-protest views and halting the protest's expansion beyond certain clusters.
+
+### Granovetter Model
+
+```{r Granovetter, echo=TRUE, tidy=TRUE}
+library(reshape2)
+
+# Setup the number of cycles in the simulation.
+cycle <- seq(1:10000)
+
+# Define the grid size
+grid_size <- 32
+# Populate your grid with threshold values drawn at random from a beta distribution with parameters shape1 and shape2.
+thresholds <- matrix(rbeta(n = grid_size^2, shape1 = 5, shape2 = 5),
+nrow = grid_size, ncol = grid_size)
+# Create a matrix of agents being active or not.
+activity <- matrix(0, nrow = grid_size, ncol = grid_size)
+# Randomly allocate some agents to be active from the start. This can be useful to get the simulation going, and you could explore this in your assignment.
+activity[sample(1:(grid_size^2), 100)] <- 1
+
+# Function to get the sum of thresholds of immediate neighbours.
+get_neighbour_sum <- function(x, y, grid) {
+  neighbours <- c(grid[x-1, y], grid[x+1, y], grid[x, y-1], grid[x, y+1], 
+  grid[x-1,y-1], grid[x+1,y+1],grid[x-1,y+1], grid[x+1,y-1])
+  return(sum(neighbours, na.rm = TRUE))
+}
+
+# Simulation
+r <- vector()
+for (i in 1:length(cycle)) {
+  agent_x <- sample(2:(grid_size-1), 1)
+  agent_y <- sample(2:(grid_size-1), 1)
+  
+  neighbour_sum <- get_neighbour_sum(agent_x, agent_y, activity)
+  
+  # Change agent to active if his threshold is below the proportion of surrounding active agents.
+  if (thresholds[agent_x, agent_y] < (neighbour_sum / 8)) {
+    activity[agent_x, agent_y] <- 1
+  }
+  
+  r[i] <- sum(activity)
+  # Optional methods to inspect behaviour of the simulation.
+  #Sys.sleep(0.05)
+  #print(neighbour_sum)
+}
+
+# Plot the results
+plot(r, type = "l", main = "Number of Active Agents Over Time", xlab = "Time", ylab = "Number of Active Agents")
+```
+
+**2.** You need to extend the model in two ways.
+
+**a.** First, you are asked to explore how the distribution of thresholds in the population may influence the model's behaviour. Using simulations, show how the model behaves as you change the initial setup of thresholds of individual agents.
+
+```{r}
+# Grid parameters
+grid_size <- 32
+cycles <- 10000
+init_active <- 100
+# Define a function to run the simulation 
+simulate_threshold_model <- function(thresholds, grid_size = 32, cycles = 10000, init_active = 100) {
+  activity <- matrix(0, nrow = grid_size, ncol = grid_size)
+  # Randomly allocate some agents to be active from the start.
+  activity[sample(1:(grid_size^2), init_active)] <- 1
+  # Define helper function to sum immediate (8) neighbours
+  get_neighbour_sum <- function(x, y, grid) {
+    neighbours <- c(grid[x-1, y], grid[x+1, y], grid[x, y-1], grid[x, y+1],
+                    grid[x-1, y-1], grid[x+1, y+1], grid[x-1, y+1], grid[x+1, y-1])
+    return(sum(neighbours, na.rm = TRUE))
+  }
+  
+  # Vector to record total active agents at each cycle
+  r <- numeric(cycles)
+  
+  for (i in 1:cycles) {
+    # Randomly select an agent (avoiding the edges for simplicity)
+    agent_x <- sample(2:(grid_size-1), 1)
+    agent_y <- sample(2:(grid_size-1), 1)
+    
+    # Calculate the proportion of active neighbours
+    neighbour_sum <- get_neighbour_sum(agent_x, agent_y, activity)
+    proportion_active <- neighbour_sum / 8
+    
+    # Activate the agent if the proportion exceeds its threshold
+    if (thresholds[agent_x, agent_y] < proportion_active) {
+      activity[agent_x, agent_y] <- 1
+    }
+    
+    # Record the current total number of active agents
+    r[i] <- sum(activity)
+  }
+  
+  return(r)
+}
+
+
+
+# 1. Low Average Thresholds (a lower mean)
+set.seed(123)  # for reproducibility
+thresholds_low <- matrix(rbeta(n = grid_size^2, shape1 = 2, shape2 = 5), nrow = grid_size, ncol = grid_size)
+result_low <- simulate_threshold_model(thresholds_low, grid_size, cycles, init_active)
+
+# 2. High Average Thresholds ( a higher mean)
+set.seed(123)
+thresholds_high <- matrix(rbeta(n = grid_size^2, shape1 = 5, shape2 = 2), nrow = grid_size, ncol = grid_size)
+result_high <- simulate_threshold_model(thresholds_high, grid_size, cycles, init_active)
+
+# 3. Moderate/Mixed Thresholds ( beta with shape1 = 5, shape2 = 5)
+set.seed(123)
+thresholds_mixed <- matrix(rbeta(n = grid_size^2, shape1 = 5, shape2 = 5), nrow = grid_size, ncol = grid_size)
+result_mixed <- simulate_threshold_model(thresholds_mixed, grid_size, cycles, init_active)
+
+# Plotting the results to compare
+plot(result_low, type = "l", col = "blue", lwd = 2,
+     main = "Active Agents Over Time for Different Threshold Distributions",
+     xlab = "Time (iterations)", ylab = "Number of Active Agents", ylim = c(0, grid_size^2))
+lines(result_high, col = "red", lwd = 2)
+lines(result_mixed, col = "green", lwd = 2)
+legend("topright",
+       inset = c(-0.25, 0),    # negative inset moves legend to the right
+       xpd = TRUE,            # allows drawing outside the plot region
+       legend = c("Low Thresholds", "High Thresholds", "Mixed Thresholds"),
+       col = c("blue", "red", "green"),
+       lwd = 2,
+       bty = "n")             
+```
+
+**Extension:**
+
+-   Each agent is assigned a threshold value drawn from a specified distribution. The threshold determines the proportion of active neighbours needed for that agent to become active.
+
+    -   **Low Thresholds (Beta(2,5))**: Most agents have a relatively low activation barrier.
+
+    -   **High Thresholds (Beta(5,2))**: Most agents require a large fraction of neighbours to be active before they join.
+
+    -   **Mixed/Moderate Thresholds (Beta(5,5))**: Agents are spread around a more balanced mean, creating a mixture of easy-to-activate and more resistant individuals.
+
+-   Varying the threshold distribution lets us explore how the diversity in individuals\' willingness to participate shapes the overall spread of activity. By comparing low, high, and mixed distributions, we see how quickly and extensively the protest (or other collective action) might catch on.
+
+**Agent Behaviour:**
+
+-   Low Thresholds:
+
+    -   Agents - The blue line rises rapidly and plateaus at a high level (close to 800 active agents).
+
+    -   RL - Most people in this population are easily convinced to join once they see only a few active neighbours. This mirrors a community of highly receptive individuals---like enthusiastic early adopters---leading to a swift and extensive cascade of participation.
+
+-   High Thresholds:
+
+    -   Agents - The red line barely climbs above 100, staying almost flat over 10,000 iterations.
+
+    -   RL - a highly cautious or resistant population that won\'t mobilise unless they see overwhelming support, which something that never happens in this simulation.
+
+-   Mixed/Moderate Thresholds:
+
+    -   Agents - The green line shows moderate growth, levelling off around 200 active agents.
+
+    -   RL - Reflects the more typical diversity found in real communities, where some people jump in quickly while others hold back until a strong local consensus forms.
+
+**Psychological Dynamics:**
+
+-   The sharp contrast between the blue (low thresholds) and red (high thresholds) lines underscores how differing \"readiness\" can make or break a social movement. If too many people are hard to convince, the movement barely takes off.
+
+-   The green line\'s moderate success shows that having a mix of low- and high-threshold individuals can still yield some spread. Early adopters help overcome the inertia of more cautious individuals, but only to a point.
+
+```{r}
+# Function to run the simulation given a threshold matrix.
+simulate_threshold_model <- function(thresholds, grid_size = 32, cycles = 10000, init_active = 100, dynamic = FALSE, delta = 0.005) {
+  # Create a matrix of agents (0 = inactive, 1 = active)
+  activity <- matrix(0, nrow = grid_size, ncol = grid_size)
+  # Randomly allocate some agents to be active from the start.
+  activity[sample(1:(grid_size^2), init_active)] <- 1
+  
+  # Helper function: get sum of immediate (8) neighbours
+  get_neighbour_sum <- function(x, y, grid) {
+    neighbours <- c(
+      grid[x-1, y], grid[x+1, y],
+      grid[x, y-1], grid[x, y+1],
+      grid[x-1, y-1], grid[x+1, y+1],
+      grid[x-1, y+1], grid[x+1, y-1]
+    )
+    return(sum(neighbours, na.rm = TRUE))
+  }
+  
+  # Vector to record the total number of active agents at each cycle
+  active_over_time <- numeric(cycles)
+  
+  for (i in 1:cycles) {
+    # Randomly select an agent (avoiding the edges for simplicity)
+    agent_x <- sample(2:(grid_size-1), 1)
+    agent_y <- sample(2:(grid_size-1), 1)
+    
+    # Calculate the proportion of active neighbours 
+    neighbour_sum <- get_neighbour_sum(agent_x, agent_y, activity)
+    proportion_active <- neighbour_sum / 8
+    
+    # If the agent is inactive and the proportion exceeds its threshold, activate it.
+    if (activity[agent_x, agent_y] == 0 && proportion_active > thresholds[agent_x, agent_y]) {
+      activity[agent_x, agent_y] <- 1
+    }
+    
+    # Dynamic threshold update (if enabled): adjust the threshold for the selected agent.
+    if (dynamic && activity[agent_x, agent_y] == 0) {
+      # Lower the threshold if many neighbours are active, or increase it if few are active.
+      if (proportion_active > 0.5) {
+        thresholds[agent_x, agent_y] <- max(thresholds[agent_x, agent_y] - delta, 0)
+      } else {
+        thresholds[agent_x, agent_y] <- min(thresholds[agent_x, agent_y] + delta, 1)
+      }
+    }
+    
+    # Record the current total number of active agents.
+    active_over_time[i] <- sum(activity)
+  }
+  
+  return(list(active = active_over_time, final_thresholds = thresholds))
+}
+
+# Function to generate bimodal thresholds.
+generate_bimodal_thresholds <- function(grid_size, p = 0.5, shape1_low = 2, shape2_low = 5, shape1_high = 5, shape2_high = 2) {
+  total_cells <- grid_size^2
+  thresholds <- numeric(total_cells)
+  for (i in 1:total_cells) {
+    if (runif(1) < p) {
+      thresholds[i] <- rbeta(1, shape1 = shape1_low, shape2 = shape2_low)
+    } else {
+      thresholds[i] <- rbeta(1, shape1 = shape1_high, shape2 = shape2_high)
+    }
+  }
+  return(matrix(thresholds, nrow = grid_size, ncol = grid_size))
+}
+
+# Function to generate spatially correlated thresholds using simple smoothing.
+generate_spatial_thresholds <- function(grid_size, base_distribution = function(n) runif(n, 0, 1)) {
+  thresholds <- matrix(base_distribution(grid_size^2), nrow = grid_size, ncol = grid_size)
+  thresholds_smoothed <- thresholds
+  
+  # Apply a simple smoothing: each cell becomes the average of itself and its 8 neighbours.
+  for (i in 2:(grid_size-1)) {
+    for (j in 2:(grid_size-1)) {
+      local_vals <- thresholds[(i-1):(i+1), (j-1):(j+1)]
+      thresholds_smoothed[i, j] <- mean(local_vals)
+    }
+  }
+  return(thresholds_smoothed)
+}
+
+# Set simulation parameters.
+grid_size <- 32
+cycles <- 10000
+init_active <- 100
+set.seed(123)
+
+# Generate different threshold matrices:
+
+# 1. Uniform Thresholds: Each threshold is drawn from a uniform distribution between 0 and 1.
+thresholds_uniform <- matrix(runif(grid_size^2, 0, 1), nrow = grid_size, ncol = grid_size)
+
+# 2. Bimodal Thresholds: Population split into two groups with low and high thresholds.
+thresholds_bimodal <- generate_bimodal_thresholds(grid_size, p = 0.5)
+
+# 3. Spatially Correlated Thresholds: Random thresholds that are smoothed to create clusters.
+thresholds_spatial <- generate_spatial_thresholds(grid_size, base_distribution = function(n) runif(n, 0, 1))
+
+# 4. (For dynamic thresholds, we'll use the uniform thresholds and allow them to change over time.)
+
+# Run simulations:
+result_uniform <- simulate_threshold_model(thresholds_uniform, grid_size, cycles, init_active, dynamic = FALSE)
+result_bimodal <- simulate_threshold_model(thresholds_bimodal, grid_size, cycles, init_active, dynamic = FALSE)
+result_spatial <- simulate_threshold_model(thresholds_spatial, grid_size, cycles, init_active, dynamic = FALSE)
+result_dynamic <- simulate_threshold_model(thresholds_uniform, grid_size, cycles, init_active, dynamic = TRUE, delta = 0.005)
+
+# Plot the results for comparison.
+par(mfrow = c(2,2))
+plot(result_uniform$active, type = "l", col = "blue", lwd = 2,
+     main = "Uniform Thresholds", xlab = "Time (iterations)", ylab = "Active Agents")
+plot(result_bimodal$active, type = "l", col = "red", lwd = 2,
+     main = "Bimodal Thresholds", xlab = "Time (iterations)", ylab = "Active Agents")
+plot(result_spatial$active, type = "l", col = "green", lwd = 2,
+     main = "Spatially Correlated Thresholds", xlab = "Time (iterations)", ylab = "Active Agents")
+plot(result_dynamic$active, type = "l", col = "purple", lwd = 2,
+     main = "Dynamic Thresholds", xlab = "Time (iterations)", ylab = "Active Agents")
+par(mfrow = c(1,1))
+
+plot(result_uniform$active, type = "l", col = "blue", lwd = 2,
+     main = "Comparison of Threshold Manipulations",
+     xlab = "Time (iterations)", ylab = "Active Agents", ylim = c(0, grid_size^2))
+lines(result_bimodal$active, col = "red", lwd = 2)
+lines(result_spatial$active, col = "green", lwd = 2)
+lines(result_dynamic$active, col = "purple", lwd = 2)
+legend("bottomright", legend = c("Uniform", "Bimodal", "Spatially Correlated", "Dynamic"),
+       col = c("blue", "red", "green", "purple"), lwd = 2)
+
+```
+
+1.  **Uniform Thresholds**
+
+    -   Every agent\'s threshold is drawn uniformly between 0 and 1. This means each agent\'s willingness to join is completely random and spans the full \[0,1\] range with equal probability.
+
+    -   Because thresholds are scattered across the entire range, we will see a moderate, somewhat smooth increase in active agents. Some individuals have low thresholds (activating easily), while others have higher thresholds, delaying their activation until enough neighbours are active.
+
+    -   A uniform distribution represents a community with no particular bias toward being either very easy or very hard to convince.
+
+2.  **Bimodal Thresholds**
+
+    -   The population is split into two groups: one with predominantly low thresholds (e.g. Beta(2,5)) and another with high thresholds (Beta(5,2)), each chosen with a 50% chance. Essentially, half of the agents are easy to convince, and the other half are much harder.
+
+    -   The low-threshold group activates quickly, but the high-threshold group often remains inactive if they never see enough neighbours become active. This can lead to a pronounced plateau if there isn\'t sufficient overlap between the two groups.
+
+    -   In reality, we might see a clear divide: a portion of the population is gung-ho and adopts a new behaviour quickly, while another portion is extremely resistant.
+
+    -   Those who are eager jump in immediately, but the rest remain inactive unless a strong local concentration of active agents forms. This can explain partial but not universal adoption of certain social movements.
+
+3.  **Spatially Correlated Thresholds**
+
+    -   Thresholds are initially random, then smoothed so that each cell\'s threshold becomes the average of itself and its eight neighbours.
+
+    -   This creates \"clusters\" where nearby agents share similar threshold values, some areas of the grid will have mostly low thresholds, while others will have mostly high thresholds.
+
+    -   Regions with low thresholds will see local cascades of activation. However, neighbouring areas with uniformly higher thresholds may remain largely inactive.
+
+    -    In reality, people in the same geographic or social cluster often share similar attitudes. Potentially seeing entire neighbourhoods mobilise for a cause, while an adjacent area remains untouched if residents there have collectively higher barriers to participation.
+
+    -   Social media and real-world communities often group like-minded individuals together, amplifying local effects while insulating them from other viewpoints.
+
+4.  Dynamic Thresholds - explain in part b
+
+**b.** Second, you should extend the core behaviour of your agents. The goal here is to make your simulation more realistic in how it reflects basic psychological and social processes of individual agents. You are free to change any aspect of the model, and you can draw inspiration from the activities that we will discuss in our seminars.
+
+##### Instead of Computing an all-in-one model, I simulated each effect separately. This approach clarifies how each factor influences agents' behaviour, as an all-in-one model can become too cluttered, making it difficult to pinpoint the contribution of each individual factor.
+
+#### 1. Multi-layered Weighted Social Influence & Group Identity
+
+```{r}
+simulate_threshold_model_three_layer_weighted <- function(grid_size = 32, 
+                                                            cycles = 10000, 
+                                                            init_active = 100) {
+  # Set up thresholds for agents, e.g. using a Beta distribution
+  thresholds <- matrix(rbeta(n = grid_size^2, shape1 = 5, shape2 = 5),
+                       nrow = grid_size, ncol = grid_size)
+  
+  # Create an activity matrix (0 = inactive, 1 = active)
+  activity <- matrix(0, nrow = grid_size, ncol = grid_size)
+  # Randomly activate some agents initially
+  activity[sample(1:(grid_size^2), init_active)] <- 1
+  
+  # Define the weights for layers
+  weights <- c(0.5, 0.3, 0.2)  # First layer: 0.5, second: 0.3, third: 0.2
+  
+  # List of 8 directions (dx, dy) for cardinal and diagonal directions:
+  directions <- list(
+    up        = c(-1,  0),
+    down      = c( 1,  0),
+    left      = c( 0, -1),
+    right     = c( 0,  1),
+    up_left   = c(-1, -1),
+    up_right  = c(-1,  1),
+    down_left = c( 1, -1),
+    down_right= c( 1,  1)
+  )
+  
+  # Helper function to compute active status for one direction from agent at (x,y)
+  get_direction_active <- function(x, y, dir, grid) {
+    sum_weight <- 0
+    for (layer in 1:3) {
+      new_x <- x + layer * dir[1]
+      new_y <- y + layer * dir[2]
+      # Check boundaries; if out-of-bound, assume inactive (0)
+      if (new_x < 1 || new_x > nrow(grid) || new_y < 1 || new_y > ncol(grid)) {
+        next
+      }
+      # If the neighbour is active, add its weight; else add 0
+      sum_weight <- sum_weight + weights[layer] * grid[new_x, new_y]
+    }
+    # If the weighted sum is 0.5 or higher, we consider this direction as active (1), else 0.
+    if (sum_weight >= 0.5) {
+      return(1)
+    } else {
+      return(0)
+    }
+  }
+  
+  # Helper function: for an agent at (x,y), calculate the overall weighted influence 
+  # as the proportion of directions that are "active".
+  get_overall_influence <- function(x, y, grid) {
+    active_count <- 0
+    for (dir in directions) {
+      active_count <- active_count + get_direction_active(x, y, dir, grid)
+    }
+    return(active_count / 8)
+  }
+  
+  # Vector to record the total number of active agents at each cycle.
+  active_over_time <- numeric(cycles)
+  
+  # To avoid boundary issues (we need three layers), restrict selection to safe region:
+  min_index <- 4
+  max_index <- grid_size - 3
+  
+  for (i in 1:cycles) {
+    # Randomly select an agent from the safe region
+    agent_x <- sample(min_index:max_index, 1)
+    agent_y <- sample(min_index:max_index, 1)
+    
+    # Only consider inactive agents
+    if (activity[agent_x, agent_y] == 0) {
+      influence <- get_overall_influence(agent_x, agent_y, activity)
+      # If the proportion of active directions exceeds the agent's threshold, activate it.
+      if (influence > thresholds[agent_x, agent_y]) {
+        activity[agent_x, agent_y] <- 1
+      }
+    }
+    
+    # Record the total number of active agents.
+    active_over_time[i] <- sum(activity)
+  }
+  
+  return(list(active_over_time = active_over_time, final_thresholds = thresholds, final_activity = activity))
+}
+
+# Example usage:
+set.seed(123)
+result_three_layer <- simulate_threshold_model_three_layer_weighted(grid_size = 32, cycles = 10000, init_active = 100)
+
+# Plot the number of active agents over time
+plot(result_three_layer$active_over_time, type = "l", col = "blue", lwd = 2,
+     main = "Active Agents Over Time (3-Layer Weighted Influence)",
+     xlab = "Time (iterations)", ylab = "Number of Active Agents")
+
+```
+
+**Extension:**
+
+-   In this simulation, each agent doesn't just look at its immediate (first-layer) neighbours. Instead, it considers three layers in each of the 8 directions (up, down, left, right, and the 4 diagonals).
+
+-   The nearest neighbour in each direction (first layer) contributes 0.5 if active, the second layer contributes 0.3, and the third layer contributes 0.2.
+
+-   For each direction, if the weighted sum reaches or exceeds 0.5, that direction is counted as "active." The overall influence is then computed as the proportion of active directions (i.e. the number of active directions divided by 8).
+
+-   This setup reflects group identity: the inner layer (likely your close contacts or in-group members) has the strongest influence, while the outer layers (more distant contacts) count less.
+
+-   **Concept of "Layers"**\
+
+    In everyday life, people aren't just influenced by their immediate friends or family. They also pay attention to the opinions and actions of colleagues, acquaintances, or even acquaintances-of-acquaintances. By weighting these additional layers (e.g., 0.5 for closest contacts, 0.3 for somewhat distant, 0.2 for even further), the model mimics how we still consider---but value less---what more distant social connections are doing.
+
+#### Agents-real life Behaviour: Continuous Growth in Active Agents
+
+-   In the simulated graph, the number of active agents keeps rising steadily throughout the simulation, reaching above 300 active agents by iteration 10,000. This is in stark contrast to the standard model's graph (on the right), where activation stalls around 125 active agents fairly early on and remains flat.
+
+-   Because agents account for multiple layers, even those initially surrounded by mostly inactive immediate neighbours may still receive enough influence from the second and third layers. Over time, these additional signals push more agents above their threshold.
+
+-   This continuous uptick reflects how, in real communities, social movements can keep gaining traction when people see support not just from close friends but also from broader circles. It's the difference between a small local group being easily contained versus a movement that draws in participants from further reaches of someone's social network---enough to keep the momentum going.
+
+#### 2. Leader Influence
+
+```{r}
+simulate_threshold_model_leader <- function(grid_size = 32, cycles = 10000, init_active = 100) {
+  # Set up thresholds for each agent.
+  # Here thresholds are drawn uniformly between 0 and 3.
+  thresholds <- matrix(runif(grid_size^2, 0, 3), nrow = grid_size, ncol = grid_size)
+  
+  # Create an activity matrix (0 = inactive, 1 = active)
+  activity <- matrix(0, nrow = grid_size, ncol = grid_size)
+  # Randomly activate some agents initially
+  activity[sample(1:(grid_size^2), init_active)] <- 1
+  
+  # Helper function to compute weighted sum from immediate neighbours.
+  get_weighted_sum <- function(x, y, grid) {
+    # Get the eight immediate neighbours
+    neighbours <- c(
+      grid[x-1, y],    # Up
+      grid[x+1, y],    # Down
+      grid[x, y-1],    # Left
+      grid[x, y+1],    # Right
+      grid[x-1, y-1],  # Up-Left
+      grid[x-1, y+1],  # Up-Right
+      grid[x+1, y-1],  # Down-Left
+      grid[x+1, y+1]   # Down-Right
+    )
+    
+    # Sum the basic contributions: each active neighbour counts as 1.
+    base_sum <- sum(neighbours)
+    
+    # Randomly choose one neighbour as the leader.
+    leader_idx <- sample(1:8, 1)
+    # If the chosen leader is active, add an extra 1 to double its influence.
+    if (neighbours[leader_idx] == 1) {
+      base_sum <- base_sum + 1
+    }
+    
+    return(base_sum)
+  }
+  
+  # Vector to record the total number of active agents at each cycle.
+  active_over_time <- numeric(cycles)
+  
+  # For simplicity, avoid the edges where neighbours may not exist.
+  for (i in 1:cycles) {
+    agent_x <- sample(2:(grid_size-1), 1)
+    agent_y <- sample(2:(grid_size-1), 1)
+    
+    # Only update inactive agents.
+    if (activity[agent_x, agent_y] == 0) {
+      weighted_sum <- get_weighted_sum(agent_x, agent_y, activity)
+      # If the weighted sum of neighbours meets or exceeds the agent's threshold, activate the agent.
+      if (weighted_sum >= thresholds[agent_x, agent_y]) {
+        activity[agent_x, agent_y] <- 1
+      }
+    }
+    
+    active_over_time[i] <- sum(activity)
+  }
+  
+  return(list(active_over_time = active_over_time, final_thresholds = thresholds, final_activity = activity))
+}
+
+# Example usage:
+set.seed(123)
+result_leader <- simulate_threshold_model_leader(grid_size = 32, cycles = 10000, init_active = 100)
+
+# Plot the number of active agents over time.
+plot(result_leader$active_over_time, type = "l", col = "orange", lwd = 2,
+     main = "Active Agents Over Time with Leader Influence",
+     xlab = "Time (iterations)", ylab = "Number of Active Agents")
+
+```
+
+**Extension:**
+
+-   one neighbour among an agent's immediate surroundings (the 8 adjacent cells) is randomly chosen as a "leader."
+
+-   If that leader is active, its influence is boosted---originally doubled (making it count as 2 instead of 1),
+
+-   This extra weight means the leader can tip the balance and push an agent's total perceived influence above its threshold, causing activation.
+
+**Agent Behaviour:**
+
+-   Because one active neighbour carries extra influence, an agent who might otherwise remain inactive (due to a borderline threshold) can now be swayed to activate.(satiation at 800 vs satiation at 125 compare to the standard model)
+
+-   The fact that the leader is chosen randomly among the 8 neighbours introduces variability. Some agents may receive a leader who is inactive (providing no extra boost), while others benefit from a strongly influential neighbour, accelerating activation.
+
+-   An area with a few leaders can quickly develop pockets of high influence, creating mini-cascades of activation. Once a handful of agents become active, the extra leader weight can trigger a chain reaction in that region.
+
+**Real-life and Psychological Dynamics:**
+
+-   In real communities, certain people due to charisma, social status, or expertise carry more weight. Their endorsement or participation can sway others more strongly than the average person's.
+
+-   Research shows that having even a small number of influential figures can significantly sway group behaviour, especially in contexts like protests, product adoption, or political movements. The leader extension replicates this effect: a single well-regarded voice can be enough to encourage fence-sitters to act.
+
+-   Leaders often act as catalysts, accelerating collective action. When people see a respected or high-status individual participating, it reduces their uncertainty and emboldens them to join. This can lead to rapid growth in participation once a few key leaders become active.
+
+#### 3. Deactivation after reaches satiation(active to inactive)
+
+```{r}
+simulate_threshold_model_deactivation_dynamic <- function(grid_size = 32, 
+                                                            cycles = 10000, 
+                                                            init_active = 100, 
+                                                            stability_threshold = 1000) {
+  # Set up thresholds for each agent using a Beta distribution (values between 0 and 1)
+  thresholds <- matrix(rbeta(n = grid_size^2, shape1 = 5, shape2 = 5),
+                       nrow = grid_size, ncol = grid_size)
+  
+  # Create an activity matrix: 0 = inactive, 1 = active
+  activity <- matrix(0, nrow = grid_size, ncol = grid_size)
+  # Randomly activate some agents initially
+  activity[sample(1:(grid_size^2), init_active)] <- 1
+  
+  # Function to calculate the sum of activity of the 8 immediate neighbours
+  get_neighbour_sum <- function(x, y, grid) {
+    neighbours <- c(
+      grid[x-1, y], grid[x+1, y],
+      grid[x, y-1], grid[x, y+1],
+      grid[x-1, y-1], grid[x+1, y+1],
+      grid[x-1, y+1], grid[x+1, y-1]
+    )
+    return(sum(neighbours, na.rm = TRUE))
+  }
+  
+  # Vector to record the total number of active agents at each cycle
+  active_over_time <- numeric(cycles)
+  
+  # Variables to track system stability
+  stable_count <- 0
+  previous_total <- sum(activity)
+  
+  for (i in 1:cycles) {
+    # Randomly select an agent (avoiding edges for simplicity)
+    agent_x <- sample(2:(grid_size-1), 1)
+    agent_y <- sample(2:(grid_size-1), 1)
+    
+    # Calculate the proportion of active neighbours (there are 8)
+    neighbour_sum <- get_neighbour_sum(agent_x, agent_y, activity)
+    proportion_active <- neighbour_sum / 8
+    
+    # Activation rule: If an inactive agent sees more active neighbours than its threshold, it activates.
+    if (activity[agent_x, agent_y] == 0 && proportion_active > thresholds[agent_x, agent_y]) {
+      activity[agent_x, agent_y] <- 1
+    }
+    
+    # Only if the system has been stable for stability_threshold iterations, allow deactivation.
+    if (stable_count >= stability_threshold) {
+      # Deactivation rule: If an active agent sees fewer active neighbours than its threshold, it deactivates.
+      if (activity[agent_x, agent_y] == 1 && proportion_active < thresholds[agent_x, agent_y]) {
+        activity[agent_x, agent_y] <- 0
+      }
+    }
+    
+    # Update stability counter: if the total active agents remains the same, increment; else, reset.
+    current_total <- sum(activity)
+    if (current_total == previous_total) {
+      stable_count <- stable_count + 1
+    } else {
+      stable_count <- 0
+    }
+    previous_total <- current_total
+    
+    # Record the total number of active agents at this cycle.
+    active_over_time[i] <- current_total
+  }
+  
+  return(list(active_over_time = active_over_time, final_thresholds = thresholds, final_activity = activity))
+}
+
+# Example usage:
+set.seed(123)
+result_deactivation_dynamic <- simulate_threshold_model_deactivation_dynamic(grid_size = 32, 
+                                                                             cycles = 10000, 
+                                                                             init_active = 100, 
+                                                                             stability_threshold = 1000)
+
+# Plot the number of active agents over time.
+plot(result_deactivation_dynamic$active_over_time, type = "l", col = "red", lwd = 2,
+     main = "Active Agents Over Time with Deactivation After Stability",
+     xlab = "Time (iterations)", ylab = "Number of Active Agents")
+
+```
+
+**Extension:**
+
+-   Once the system reaches a stable state (i.e., the total number of active agents remains unchanged for a predetermined period, such as 1000 consecutive iterations)
+
+-   Active agents are allowed to switch back to inactive if the local influence (the proportion of active neighbours) falls below their fixed threshold.
+
+-   Basically opposing the standard model rule.(withdrawing effect)
+
+**Agent Behaviour:**
+
+-   Initially, agents become active when the influence from their neighbours exceeds their threshold. After a period of stability, if an active agent notices that the local influence has dropped (i.e., number of active agents reaches satiation or even drop ), it will deactivate and return to the inactive state.
+
+-   This allows agents to dynamically adjust their participation based on current local conditions, reflecting the possibility that commitment to a cause may diminish over time when the environment changes or progress stalls.
+
+    -   **Small Decline:**\
+
+        After the satiation point, we can see a slight drop in active agents (from around 140 down to the mid-130s). This reflects previously active agents who are no longer surrounded by enough active neighbours to stay motivated, causing them to revert to an inactive state.
+
+**Real-Life and Psychological Dynamics:**
+
+-   In real life, when a social movement or protest seems to hit a standstill,no visible progress or insufficient support, some participants lose enthusiasm and pull out. The graph's gradual decrease in the number of active agents after stability captures this effect.
+
+-   People's commitment isn't permanent; they reassess their involvement based on changing social cues. When the perceived momentum stalls, individuals may decide it's no longer worth the effort or risk, mirroring the deactivation rule in the model.
+
+#### 4. Anti-Conformists (Grabisch ,2019)
+
+```{r}
+
+simulate_threshold_model_anticonformist_bidirectional <- function(grid_size = 32, 
+                                                                    cycles = 10000, 
+                                                                    init_active = 100, 
+                                                                    anticonformist_prob = 0.1) {
+  # Set up thresholds for each agent using a Beta distribution (values between 0 and 1)
+  thresholds <- matrix(rbeta(n = grid_size^2, shape1 = 5, shape2 = 5),
+                       nrow = grid_size, ncol = grid_size)
+  
+  # Create an activity matrix: 0 = inactive, 1 = active
+  activity <- matrix(0, nrow = grid_size, ncol = grid_size)
+  # Randomly activate some agents at the start
+  activity[sample(1:(grid_size^2), init_active)] <- 1
+  
+  # Create a flag matrix to mark anticonformist agents.
+  # Each agent is an anticonformist with probability 'anticonformist_prob'
+  is_anticonformist <- matrix(runif(grid_size^2) < anticonformist_prob,
+                              nrow = grid_size, ncol = grid_size)
+  
+  # Helper function: calculate the sum of activity of the 8 immediate neighbours.
+  get_neighbour_sum <- function(x, y, grid) {
+    neighbours <- c(
+      grid[x-1, y], grid[x+1, y],
+      grid[x, y-1], grid[x, y+1],
+      grid[x-1, y-1], grid[x+1, y+1],
+      grid[x-1, y+1], grid[x+1, y-1]
+    )
+    return(sum(neighbours, na.rm = TRUE))
+  }
+  
+  # Vector to record the total number of active agents at each cycle.
+  active_over_time <- numeric(cycles)
+  
+  for (i in 1:cycles) {
+    # Randomly select an agent, avoiding edges for simplicity.
+    agent_x <- sample(2:(grid_size-1), 1)
+    agent_y <- sample(2:(grid_size-1), 1)
+    
+    # Calculate the proportion of active neighbours (8 in total)
+    neighbour_sum <- get_neighbour_sum(agent_x, agent_y, activity)
+    proportion_active <- neighbour_sum / 8
+    
+    if (is_anticonformist[agent_x, agent_y]) {
+      # For anticonformists: bidirectional rule.
+      if (activity[agent_x, agent_y] == 0) {
+        # If inactive: become active when few neighbours are active.
+        if (proportion_active < thresholds[agent_x, agent_y]) {
+          activity[agent_x, agent_y] <- 1
+        }
+      } else {  # If active:
+        # Become inactive if many neighbours are active.
+        if (proportion_active > thresholds[agent_x, agent_y]) {
+          activity[agent_x, agent_y] <- 0
+        }
+      }
+    } else {
+      # For normal (conformist) agents: one-way activation.
+      if (activity[agent_x, agent_y] == 0 && proportion_active > thresholds[agent_x, agent_y]) {
+        activity[agent_x, agent_y] <- 1
+      }
+      # Normal agents remain active once activated.
+    }
+    
+    active_over_time[i] <- sum(activity)
+  }
+  
+  return(list(active_over_time = active_over_time, 
+              final_thresholds = thresholds, 
+              final_activity = activity, 
+              anticonformist_flag = is_anticonformist))
+}
+
+# Example usage:
+set.seed(123)
+result_bidirectional <- simulate_threshold_model_anticonformist_bidirectional(grid_size = 32, 
+                                                                               cycles = 10000, 
+                                                                               init_active = 100, 
+                                                                               anticonformist_prob = 0.1)
+
+# Plot the number of active agents over time.
+plot(result_bidirectional$active_over_time, type = "l", col = "purple", lwd = 2,
+     main = "Active Agents Over Time with Bidirectional Anti-Conformists",
+     xlab = "Time (iterations)", ylab = "Number of Active Agents")
+
+
+```
+
+**Extension:**
+
+-   A fraction of agents (10% in this example) are randomly flagged as anti-conformists who invert the usual activation rule:
+
+    -   **Inactive anti-conformist** becomes active if the proportion of active neighbours is **lower** than its threshold.
+
+    -   **Active anti-conformist** switches back to inactive if the proportion of active neighbours is **higher** than its threshold.
+
+-   This models real-world contrarians who prefer to go against the majority. They join when few are participating, and leave when too many are on board.
+
+**Agent Behaviour:**
+
+-   In certain neighbourhoods, the presence of anti-conformists can lead to brief oscillations or small pockets of agents switching off. While the overall number of active agents remains high, it never quite reaches total saturation due to these contrarian elements.
+
+-   The graph shows a strong rise in active agents, much like a normal threshold model, until around 2,500--3,000 iterations. Then, near the end, there is a small decline. This drop occurs because some anti-conformists who became active earlier now see that their neighbours are "too active," prompting them to revert to inactivity.
+
+**Real-Life and Psychological Dynamics:**
+
+-   A small subset of people deliberately acts opposite to mainstream trends. This graph's slight dip reflects those individuals withdrawing once the movement becomes too popular.
+
+-   Not everyone follows the same logic. By inverting the decision rule for a small portion of agents, we get more realistic, nuanced outcomes, mirroring real societies where some people resist conforming precisely because something becomes too common.
+
+-   The underlying psychological or sociological reasons might be desire for uniqueness, distrust of mainstream movements, or personal identity tied to non-conformity.
+
+#### 5. Dynamic (Evolving) Thresholds
+
+```{r}
+simulate_threshold_model_dynamic <- function(grid_size = 32, 
+                                               cycles = 10000, 
+                                               init_active = 100, 
+                                               delta = 0.005) {
+  # Set up initial thresholds (fixed at the start, e.g., using Beta(5,5))
+  thresholds <- matrix(rbeta(n = grid_size^2, shape1 = 5, shape2 = 5), 
+                       nrow = grid_size, ncol = grid_size)
+  
+  # Create a matrix of agents: 0 = inactive, 1 = active
+  activity <- matrix(0, nrow = grid_size, ncol = grid_size)
+  
+  # Activate a set number of agents at the start
+  activity[sample(1:(grid_size^2), init_active)] <- 1
+  
+  # Function to compute the sum of activity of the 8 immediate neighbours
+  get_neighbour_sum <- function(x, y, grid) {
+    neighbours <- c(
+      grid[x-1, y], grid[x+1, y],
+      grid[x, y-1], grid[x, y+1],
+      grid[x-1, y-1], grid[x+1, y+1],
+      grid[x-1, y+1], grid[x+1, y-1]
+    )
+    return(sum(neighbours, na.rm = TRUE))
+  }
+  
+  # Vector to record the total number of active agents at each cycle
+  active_over_time <- numeric(cycles)
+  
+  for (i in 1:cycles) {
+    # Randomly select an agent (avoiding the edges for simplicity)
+    agent_x <- sample(2:(grid_size-1), 1)
+    agent_y <- sample(2:(grid_size-1), 1)
+    
+    # Calculate the proportion of active neighbours (8 in total)
+    neighbour_sum <- get_neighbour_sum(agent_x, agent_y, activity)
+    proportion_active <- neighbour_sum / 8
+    
+    # If the agent is inactive and the proportion of active neighbours exceeds its threshold,
+    # the agent becomes active.
+    if (activity[agent_x, agent_y] == 0 && proportion_active > thresholds[agent_x, agent_y]) {
+      activity[agent_x, agent_y] <- 1
+    }
+    
+    # Dynamic threshold update:
+    # For inactive agents, adjust the threshold based on local influence.
+    # If many neighbours are active (> 50%), lower the threshold to make it easier to join.
+    # Otherwise, raise the threshold to make activation harder.
+    if (activity[agent_x, agent_y] == 0) {
+      if (proportion_active > 0.5) {
+        thresholds[agent_x, agent_y] <- max(thresholds[agent_x, agent_y] - delta, 0)
+      } else {
+        thresholds[agent_x, agent_y] <- min(thresholds[agent_x, agent_y] + delta, 1)
+      }
+    }
+    
+    # Record the total number of active agents at this cycle.
+    active_over_time[i] <- sum(activity)
+  }
+  
+  return(list(active_over_time = active_over_time, final_thresholds = thresholds))
+}
+
+# Example: run the dynamic threshold simulation
+set.seed(123)
+result_dynamic <- simulate_threshold_model_dynamic(grid_size = 32, cycles = 10000, init_active = 100, delta = 0.005)
+
+# Plot the number of active agents over time
+plot(result_dynamic$active_over_time, type = "l", col = "purple", lwd = 2,
+     main = "Active Agents Over Time with Dynamic Thresholds",
+     xlab = "Time (iterations)", ylab = "Number of Active Agents")
+
+```
+
+**Extension:**
+
+-   Each agent starts with a fixed threshold (for example, drawn from a Beta(5,5) distribution). However, if an agent remains inactive, it adjusts its threshold over time based on local conditions:
+
+    -   **Many Active Neighbours (Proportion \> 0.5):** The agent lowers its threshold slightly, making it easier to become active later.
+
+    -   **Few Active Neighbours (Proportion ≤ 0.5):** The agent raises its threshold, becoming more resistant.
+
+-   This models how people\'s willingness to join a movement can change dynamically as they observe ongoing participation or lack thereof.
+
+**Agent Behaviour:**
+
+-   Inactive agents gradually become more open to participation if they see strong local support (over half their neighbours are active), and more hesitant if they see weak support.
+
+-   The threshold changes in small increments (`delta`), so it can take multiple exposures to high (or low) neighbour activity for an agent\'s threshold to move significantly.
+
+-   Because thresholds can drift down in areas of high activity, agents that were previously borderline may eventually activate. This can lead to a steady (though sometimes slower) increase in active agents over time.
+
+**Real-Life and Psychological Dynamics:**
+
+-   People rarely have static attitudes. Seeing ongoing, visible participation in a protest or social movement can gradually erode initial reservations. Conversely, seeing inactivity can reinforce doubts.
+
+-   Each repeated exposure to a strongly active local environment nudges an individual toward joining. This reflects real-world processes where repeated positive signals or peer pressure lowers psychological barriers.
+
+-   Compared to a fixed-threshold model, dynamic thresholds may produce longer-lasting increases in participation because more hesitant individuals can eventually be \"won over\" if local support remains consistently high.
