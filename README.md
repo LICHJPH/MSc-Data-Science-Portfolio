@@ -56,5 +56,30 @@ This document contains three distinct computational projects:
 * **Tech Stack:** R / Agent-Based Frameworks.
 * **Relevance:** Demonstrates advanced computational modelling capabilities applicable to housing market dynamics and supply-chain network effects.
 
+**📂 File 4:** `behavioural_financial_analysis.py`
+
+This project demonstrates a full data engineering and analysis pipeline, automating the retrieval and statistical validation of behavioural datasets.
+
+**1. Automated Data Retrieval (API Integration)**
+* **Objective:** Construct a unified dataset from remote servers and local files.
+* **Tech Stack:** Python (`requests`, `json`).
+* **Relevance:**
+    * Connects to **Supabase REST API** to fetch live asset data using secure header authentication.
+    * Demonstrates the ability to handle web-based data streams required for online experiments.
+
+**2. Data Cleaning & Pre-processing**
+* **Objective:** Prepare heterogeneous data for rigorous statistical testing.
+* **Tech Stack:** Python (`pandas`).
+* **Relevance:**
+    * Automated the merging of personality CSVs with JSON asset data on unique IDs.
+    * Implemented filtering logic to isolate specific currency holdings (GBP) and handle missing values.
+    * Directly addresses the "Data transcription, clearing, and pre-processing" criterion.
+
+**3. Statistical Analysis & Visualisation**
+* **Objective:** Validate hypotheses connecting personality traits to financial risk.
+* **Tech Stack:** Python (`scipy.stats`, `matplotlib`).
+* **Relevance:**
+    * Conducted **Pearson Correlation** and **Linear Regression** analyses to test behavioural hypotheses.
+    * Generated automated scatter plots to visualize the relationship between Risk Tolerance and Asset Value.
 ---
 *For any questions regarding the code or methodology, please refer to my CV.*
