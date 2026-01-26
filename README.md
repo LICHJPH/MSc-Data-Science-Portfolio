@@ -55,18 +55,19 @@ This document contains three distinct computational projects:
 * **Objective:** Simulation of complex adaptive systems and agent interactions.
 * **Tech Stack:** R / Agent-Based Frameworks.
 * **Relevance:** Demonstrates advanced computational modelling capabilities applicable to housing market dynamics and supply-chain network effects.
+  
+## 📂 File 4: Automated Data Analysis Pipeline & API Integration (Python)
 
-**📂 File 4: Automated Data Analysis Pipeline & API Integration (Python)
-**Filename:** `Networking and Agent based Model.qmd``behavioural_financial_analysis.py`
+**Filename:** `behavioural_financial_analysis.py`
 
 This project demonstrates a full data engineering and analysis pipeline, automating the retrieval and statistical validation of behavioural datasets.
 
-**1. Automated Data Retrieval (API Integration)**
-* **Objective:** Construct a unified dataset from remote servers and local files.
-* **Tech Stack:** Python (`requests`, `json`).
+* **Objective:** Construct a unified dataset from remote servers and local files for behavioural financial analysis.
+* **Tech Stack:** Python (`pandas`, `scipy`, `requests`, `matplotlib`).
 * **Relevance:**
-    * Connects to **Supabase REST API** to fetch live asset data using secure header authentication.
-    * Demonstrates the ability to handle web-based data streams required for online experiments.
+    * **Automated Data Retrieval:** Connects to **Supabase REST API** to fetch live asset data using secure header authentication.
+    * **Data Cleaning:** Automated the merging of personality CSVs with JSON asset data, handling missing values and filtering for specific currencies (GBP).
+    * **Statistical Analysis:** Conducted **Pearson Correlation** and **Linear Regression** analyses to test hypotheses linking personality traits (e.g., Risk Tolerance) to financial assets.
 
 **2. Data Cleaning & Pre-processing**
 * **Objective:** Prepare heterogeneous data for rigorous statistical testing.
