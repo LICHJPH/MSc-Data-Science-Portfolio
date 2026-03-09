@@ -3,7 +3,7 @@
 
 
 ## Overview
-This repository contains my core computational work samples, demonstrating proficiency in **Big Data Construction**, **Machine Learning**, **Econometric Simulation**, and **Agent-Based Modelling**.
+This repository contains my core computational work samples, demonstrating proficiency in **Big Data Construction**, **Machine Learning**, **Econometric Simulation**, **Agent-Based Modelling**, and **Financial Modelling**.
 
 
 
@@ -83,5 +83,17 @@ This project demonstrates a full data engineering and analysis pipeline, automat
 * **Relevance:**
     * Conducted **Pearson Correlation** and **Linear Regression** analyses to test behavioural hypotheses.
     * Generated automated scatter plots to visualize the relationship between Risk Tolerance and Asset Value.
+
+## 📂 File 5: Financial Modelling & Scenario Forecasting
+**Filename:** `Financial_Modelling_Blu_Containers.pdf`
+
+* **Objective:** Construct a structured corporate financial model to forecast firm performance under multiple economic scenarios.
+* **Tech Stack:** Excel-based Financial Modelling (CFA Institute Practical Skills Module).
+* **Relevance:**
+    * Built a **fully integrated three-statement financial model** linking the **Income Statement, Balance Sheet, and Cash Flow Statement** with accounting consistency checks.
+    * Implemented **scenario analysis (Base, Best, Worst cases)** to evaluate how changes in pricing, sales growth, and cost inflation affect firm profitability and financial stability. :contentReference[oaicite:0]{index=0}
+    * Modelled operational drivers including **sales price, production capacity, and sales volume growth** to forecast revenue and EBITDA performance.
+    * Developed supporting schedules for **working capital, depreciation, capital expenditures (CAPEX), and debt financing**, demonstrating understanding of corporate financial dynamics and valuation inputs.
 ---
+
 *For any questions regarding the code or methodology, please refer to my CV.*
